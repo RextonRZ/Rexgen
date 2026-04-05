@@ -7,7 +7,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTim
 
 const { width } = Dimensions.get('window');
 
-export default function LoginScreen() {
+export default function SignupScreen() {
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
   const buttonScale = useSharedValue(1);
@@ -48,8 +48,17 @@ export default function LoginScreen() {
       />
 
       <Animated.View style={[styles.cardContainer, animatedStyle]}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue your journey</Text>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Join us and start your journey</Text>
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            placeholderTextColor="#94a3b8"
+            autoCapitalize="words"
+          />
+        </View>
 
         <View style={styles.inputContainer}>
           <TextInput
@@ -70,10 +79,6 @@ export default function LoginScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-        </TouchableOpacity>
-
         <Animated.View style={animatedButtonStyle}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -87,7 +92,7 @@ export default function LoginScreen() {
               end={{ x: 1, y: 0.5 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Log In</Text>
+              <Text style={styles.buttonText}>Sign Up</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -107,9 +112,9 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/signup')}>
-            <Text style={styles.signupText}>Sign up</Text>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => router.push('/')}>
+            <Text style={styles.signupText}>Log in</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -164,18 +169,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 30,
-  },
-  forgotPasswordText: {
-    color: '#9536f6',
-    fontSize: 14,
-    fontWeight: '700',
-  },
   buttonContainer: {
     borderRadius: 12,
-    marginTop: -10,
+    marginTop: 10,
     overflow: 'hidden',
     shadowColor: '#9536f6',
     shadowOffset: { width: 0, height: 4 },
