@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -83,9 +83,13 @@ export default function LoginScreen() {
               />
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
+            <View style={styles.forgotPassword}>
+              <Link href="/forgot-password" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
 
             <Animated.View style={animatedButtonStyle}>
               <TouchableOpacity
