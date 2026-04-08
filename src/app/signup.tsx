@@ -10,12 +10,14 @@ const { width } = Dimensions.get('window');
 const { height: screenHeight } = Dimensions.get('screen');
 
 export default function SignupScreen() {
-  const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification
+  const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification, 3 = Profile Setup
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState('');
+  const [name, setName] = useState('');
+  const [birthday, setBirthday] = useState('');
   const [errorMsg, setErrorMsg] = useState(''); // Added inline error message
   
   const fadeAnim = useSharedValue(0);
@@ -95,10 +97,45 @@ export default function SignupScreen() {
       if (error) {
         setErrorMsg(error.message);
       } else {
-        Alert.alert('Success', 'Email verified successfully!');
-        router.push('/'); // Or go directly to '/explore'
+        setStep(3); // Proceed to profile setup after verifying OTP
+      }
+    } else if (step === 3) {
+      if (!name || !birthday) {
+        setErrorMsg('Please enter your name and birthday');
+        return;
+      }
+
+      setLoading(true);
+      // Supabase has built-in user metadata, so we can save their profile directly
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: name, birthday: birthday },
+      });
+      setLoading(false);
+
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        router.push('/explore'); // Or wherever your main app screen is
       }
     }
+  };
+
+  const getTitle = () => {
+    if (step === 1) return 'Create Account';
+    if (step === 2) return 'Verify Email';
+    return 'Almost there!';
+  };
+
+  const getSubtitle = () => {
+    if (step === 1) return 'Join us and start your journey';
+    if (step === 2) return `We've sent a code to ${email}`;
+    return 'Tell us a bit about yourself';
+  };
+
+  const getButtonText = () => {
+    if (step === 1) return 'Sign Up';
+    if (step === 2) return 'Verify Account';
+    return 'Complete Profile';
   };
 
   return (
@@ -126,10 +163,8 @@ export default function SignupScreen() {
         >
           <View style={{ flex: 1 }} />
           <Animated.View style={[styles.cardContainer, animatedStyle]}>
-            <Text style={styles.title}>{step === 1 ? 'Create Account' : 'Verify Email'}</Text>
-            <Text style={styles.subtitle}>
-              {step === 1 ? 'Join us and start your journey' : `We've sent a code to ${email}`}
-            </Text>
+            <Text style={styles.title}>{getTitle()}</Text>
+            <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
             {errorMsg ? (
               <Text style={{ color: '#ef4444', textAlign: 'center', marginBottom: 15, fontWeight: '600' }}>
@@ -196,6 +231,32 @@ export default function SignupScreen() {
               </View>
             )}
 
+            {step === 3 && (
+              <>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Full Name"
+                    placeholderTextColor="#94a3b8"
+                    autoCapitalize="words"
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Birthday (YYYY-MM-DD)"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="numbers-and-punctuation"
+                    value={birthday}
+                    onChangeText={setBirthday}
+                  />
+                </View>
+              </>
+            )}
+
             <Animated.View style={animatedButtonStyle}>
               <TouchableOpacity
                 activeOpacity={0.9}
@@ -214,7 +275,7 @@ export default function SignupScreen() {
                   {loading ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={styles.buttonText}>{step === 1 ? 'Sign Up' : 'Verify & Complete'}</Text>
+                    <Text style={styles.buttonText}>{getButtonText()}</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -240,11 +301,13 @@ export default function SignupScreen() {
 
             <View style={styles.footerContainer}>
               <Text style={styles.footerText}>
-                {step === 1 ? 'Already have an account? ' : 'Change your mind? '}
+                {step === 1 ? 'Already have an account? ' : step === 2 ? 'Change your mind? ' : ''}
               </Text>
-              <TouchableOpacity onPress={() => step === 1 ? router.push('/') : setStep(1)}>
-                <Text style={styles.signupText}>{step === 1 ? 'Log in' : 'Go back'}</Text>
-              </TouchableOpacity>
+              {step !== 3 && (
+                <TouchableOpacity onPress={() => step === 1 ? router.push('/') : setStep(1)}>
+                  <Text style={styles.signupText}>{step === 1 ? 'Log in' : 'Go back'}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </Animated.View>
         </ScrollView>
