@@ -1,11 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import { makeRedirectUri } from 'expo-auth-session';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { supabase } from '../lib/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 const { height: screenHeight } = Dimensions.get('screen');
@@ -25,6 +30,16 @@ export default function LoginScreen() {
   useEffect(() => {
     fadeAnim.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.exp) });
     slideAnim.value = withSpring(0, { damping: 15, stiffness: 100 });
+
+    // FIX: Force close any lingering Chrome Custom Tabs when a deep link brings the app back to the front!
+    // This stops the browser from getting stuck "loading" in the background after successful login.
+    const sub = Linking.addEventListener('url', () => {
+      if (Platform.OS === 'android') {
+        WebBrowser.dismissBrowser();
+      }
+    });
+
+    return () => sub.remove();
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -54,6 +69,77 @@ export default function LoginScreen() {
       setErrorMsg(error.message);
     } else {
       router.push('/explore'); // Or wherever you want them to go
+    }
+  };
+
+const onSignInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      // By using an empty string for the path, Expo generates a URL that
+      // points to your root (index.tsx) safely without crashing the router.
+      const redirectTo = makeRedirectUri({
+        path: '', 
+      });
+
+      console.log("👉 ADD THIS EXACT URL TO SUPABASE:", redirectTo);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: {
+            prompt: 'select_account', // Forces Google to show the account picker every time!
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data?.url) {
+        // Appending a random timestamp prevents Android from reusing the old, stuck Chrome Custom Tab!
+        // This guarantees a completely fresh loading page every time you press "Continue with Google".
+        const uniqueUrl = `${data.url}&_t=${Date.now()}`;
+        
+        const result = await WebBrowser.openAuthSessionAsync(uniqueUrl, redirectTo);
+        
+        // Force the browser to close immediately after returning, so it doesn't hang in the background
+        if (Platform.OS === 'ios') {
+          WebBrowser.dismissBrowser();
+        } else {
+          WebBrowser.dismissBrowser(); 
+        }
+
+        if (result.type === 'success' && result.url) {
+             // Change the Supabase hash (#) to a question mark (?) so it can be parsed safely
+             let urlToParse = result.url.replace('#', '?');
+
+             const parsedUrl = Linking.parse(urlToParse);
+             const params = parsedUrl.queryParams || {};
+             
+             const accessToken = params['access_token'] as string;
+             const refreshToken = params['refresh_token'] as string;
+
+             if (accessToken && refreshToken) {
+               await supabase.auth.setSession({
+                 access_token: accessToken,
+                 refresh_token: refreshToken,
+               });
+               router.push('/explore');
+             } else {
+                const sessionCheck = await supabase.auth.getSession();
+                if (sessionCheck.data.session) {
+                  router.push('/explore');
+                } else {
+                  setErrorMsg('Failed to grab tokens.');
+                }
+             }
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -157,7 +243,7 @@ export default function LoginScreen() {
               <View style={styles.separatorLine} />
             </View>
 
-            <TouchableOpacity style={styles.googleButton}>
+            <TouchableOpacity style={styles.googleButton} onPress={onSignInWithGoogle}>
               <Image
                 source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
                 style={styles.googleLogo}
