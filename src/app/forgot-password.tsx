@@ -2,8 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { supabase } from '../lib/supabase';
 
 const { width } = Dimensions.get('window');
 const { height: screenHeight } = Dimensions.get('screen');
@@ -14,6 +15,8 @@ export default function ForgotPasswordScreen() {
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
@@ -42,14 +45,45 @@ export default function ForgotPasswordScreen() {
     buttonScale.value = withSpring(1);
   };
 
-  const handleNextBtn = () => {
-    if (step === 1 && email) {
-      setStep(2);
-    } else if (step === 2 && otp.length === 6) {
-      setStep(3);
-    } else if (step === 3 && password && password === confirmPassword) {
-      // Logic to actually reset password
-      router.replace('/'); 
+  const handleNextBtn = async () => {
+    setErrorMsg('');
+    try {
+      setLoading(true);
+      if (step === 1 && email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) {
+          setErrorMsg(error.message);
+        } else {
+          setStep(2);
+        }
+      } else if (step === 2 && otp.length === 8) {
+        const { error } = await supabase.auth.verifyOtp({
+          email,
+          token: otp,
+          type: 'recovery',
+        });
+        if (error) {
+          setErrorMsg(error.message);
+        } else {
+          setStep(3);
+        }
+      } else if (step === 3 && password && password === confirmPassword) {
+        const { error } = await supabase.auth.updateUser({
+          password: password,
+        });
+        if (error) {
+          setErrorMsg(error.message);
+        } else {
+          Alert.alert('Success', 'Password has been reset successfully!');
+          router.replace('/'); 
+        }
+      } else if (step === 3 && password !== confirmPassword) {
+        setErrorMsg('Passwords do not match');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,6 +133,12 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.title}>{getTitle()}</Text>
             <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
+            {errorMsg ? (
+              <Text style={{ color: '#ef4444', textAlign: 'center', marginBottom: 15, fontWeight: '600' }}>
+                {errorMsg}
+              </Text>
+            ) : null}
+
             {step === 1 && (
               <Animated.View style={styles.inputContainer}>
                 <TextInput
@@ -115,8 +155,9 @@ export default function ForgotPasswordScreen() {
 
             {step === 2 && (
               <Animated.View style={styles.otpWrapper}>
+                <Text style={styles.otpLabel}>Enter 8-digit OTP</Text>
                 <View style={styles.otpContainer}>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <View key={i} style={[styles.otpBox, otp.length === i && styles.otpBoxActive]}>
                       <Text style={styles.otpText}>{otp[i] || ''}</Text>
                     </View>
@@ -124,7 +165,7 @@ export default function ForgotPasswordScreen() {
                   <TextInput
                     style={styles.hiddenOtpInput}
                     keyboardType="number-pad"
-                    maxLength={6}
+                    maxLength={8}
                     value={otp}
                     onChangeText={setOtp}
                     autoFocus
@@ -164,15 +205,20 @@ export default function ForgotPasswordScreen() {
                 onPress={handleNextBtn}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
+                disabled={loading}
                 style={styles.buttonContainer}
               >
                 <LinearGradient
-                  colors={['#9536f6', '#7c2ed7']}
+                  colors={loading ? ['#a855f7', '#a855f7'] : ['#9536f6', '#7c2ed7']}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
                   style={styles.button}
                 >
-                  <Text style={styles.buttonText}>{getButtonText()}</Text>
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{getButtonText()}</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -261,9 +307,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   otpBox: {
-    width: 45,
-    height: 56,
-    borderRadius: 12,
+    width: 36,
+    height: 50,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
@@ -275,7 +321,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   otpText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#000000',
   },

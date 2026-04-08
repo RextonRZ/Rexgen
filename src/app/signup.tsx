@@ -2,14 +2,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { supabase } from '../lib/supabase';
 
 const { width } = Dimensions.get('window');
 const { height: screenHeight } = Dimensions.get('screen');
 
 export default function SignupScreen() {
+  const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState('');
+  const [errorMsg, setErrorMsg] = useState(''); // Added inline error message
+  
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
   const buttonScale = useSharedValue(1);
@@ -37,6 +45,62 @@ export default function SignupScreen() {
     buttonScale.value = withSpring(1);
   };
 
+  const onSignUp = async () => {
+    setErrorMsg('');
+    if (step === 1) {
+      if (password !== confirmPassword) {
+        setErrorMsg('Passwords do not match');
+        return;
+      }
+      if (!email || !password) {
+        setErrorMsg('Please enter all details');
+        return;
+      }
+
+      setLoading(true);
+      
+      // Attempt signup
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      
+      setLoading(false);
+
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        if (data?.session) {
+          Alert.alert('Success', 'Account created successfully!');
+          router.push('/');
+        } else {
+          // No session means they need to verify email
+          setStep(2);
+        }
+      }
+    } else if (step === 2) {
+      if (otp.length < 8) {
+        setErrorMsg('Please enter the 8-digit code');
+        return;
+      }
+
+      setLoading(true);
+      const { error, data } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'signup',
+      });
+      setLoading(false);
+
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        Alert.alert('Success', 'Email verified successfully!');
+        router.push('/'); // Or go directly to '/explore'
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -62,91 +126,124 @@ export default function SignupScreen() {
         >
           <View style={{ flex: 1 }} />
           <Animated.View style={[styles.cardContainer, animatedStyle]}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join us and start your journey</Text>
+            <Text style={styles.title}>{step === 1 ? 'Create Account' : 'Verify Email'}</Text>
+            <Text style={styles.subtitle}>
+              {step === 1 ? 'Join us and start your journey' : `We've sent a code to ${email}`}
+            </Text>
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Email address"
-                placeholderTextColor="#94a3b8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+            {errorMsg ? (
+              <Text style={{ color: '#ef4444', textAlign: 'center', marginBottom: 15, fontWeight: '600' }}>
+                {errorMsg}
+              </Text>
+            ) : null}
 
-            <View style={styles.otpWrapper}>
-              <Text style={styles.otpLabel}>Verify Email (OTP)</Text>
-              <View style={styles.otpContainer}>
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <View key={i} style={[styles.otpBox, otp.length === i && styles.otpBoxActive]}>
-                    <Text style={styles.otpText}>{otp[i] || ''}</Text>
-                  </View>
-                ))}
-                <TextInput
-                  style={styles.hiddenOtpInput}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={otp}
-                  onChangeText={setOtp}
-                />
+            {step === 1 && (
+              <>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email address"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor="#94a3b8"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm password"
+                    placeholderTextColor="#94a3b8"
+                    secureTextEntry
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                  />
+                </View>
+              </>
+            )}
+
+            {step === 2 && (
+              <View style={styles.otpWrapper}>
+                <Text style={styles.otpLabel}>Enter 8-digit OTP</Text>
+                <View style={styles.otpContainer}>
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                    <View key={i} style={[styles.otpBox, otp.length === i && styles.otpBoxActive]}>
+                      <Text style={styles.otpText}>{otp[i] || ''}</Text>
+                    </View>
+                  ))}
+                  <TextInput
+                    style={styles.hiddenOtpInput}
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    value={otp}
+                    onChangeText={setOtp}
+                    autoFocus
+                  />
+                </View>
               </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm password"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry
-              />
-            </View>
+            )}
 
             <Animated.View style={animatedButtonStyle}>
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
+                onPress={onSignUp}
+                disabled={loading}
                 style={styles.buttonContainer}
               >
                 <LinearGradient
-                  colors={['#9536f6', '#7c2ed7']}
+                  colors={loading ? ['#a855f7', '#a855f7'] : ['#9536f6', '#7c2ed7']}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
                   style={styles.button}
                 >
-                  <Text style={styles.buttonText}>Sign Up</Text>
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{step === 1 ? 'Sign Up' : 'Verify & Complete'}</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
 
-            <View style={styles.separatorContainer}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorText}>or</Text>
-              <View style={styles.separatorLine} />
-            </View>
+            {step === 1 && (
+              <>
+                <View style={styles.separatorContainer}>
+                  <View style={styles.separatorLine} />
+                  <Text style={styles.separatorText}>or</Text>
+                  <View style={styles.separatorLine} />
+                </View>
 
-            <TouchableOpacity style={styles.googleButton}>
-              <Image
-                source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
-                style={styles.googleLogo}
-              />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.googleButton}>
+                  <Image
+                    source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
+                    style={styles.googleLogo}
+                  />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/')}>
-                <Text style={styles.signupText}>Log in</Text>
+              <Text style={styles.footerText}>
+                {step === 1 ? 'Already have an account? ' : 'Change your mind? '}
+              </Text>
+              <TouchableOpacity onPress={() => step === 1 ? router.push('/') : setStep(1)}>
+                <Text style={styles.signupText}>{step === 1 ? 'Log in' : 'Go back'}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -234,9 +331,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   otpBox: {
-    width: 48,
-    height: 56,
-    borderRadius: 12,
+    width: 36,
+    height: 50,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
@@ -248,7 +345,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   otpText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#000000',
   },

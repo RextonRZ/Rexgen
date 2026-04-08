@@ -1,14 +1,20 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
-import { Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { supabase } from '../lib/supabase';
 
 const { width } = Dimensions.get('window');
 const { height: screenHeight } = Dimensions.get('screen');
 
 export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(50);
   const buttonScale = useSharedValue(1);
@@ -34,6 +40,19 @@ export default function LoginScreen() {
 
   const handlePressOut = () => {
     buttonScale.value = withSpring(1);
+  };
+
+  const onSignIn = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    setLoading(false);
+    
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      router.push('/explore'); // Or wherever you want them to go
+    }
   };
 
   return (
@@ -64,6 +83,12 @@ export default function LoginScreen() {
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue your journey</Text>
 
+            {errorMsg ? (
+              <Text style={{ color: '#ef4444', textAlign: 'center', marginBottom: 15, fontWeight: '600' }}>
+                {errorMsg}
+              </Text>
+            ) : null}
+
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -71,6 +96,8 @@ export default function LoginScreen() {
                 placeholderTextColor="#94a3b8"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
@@ -80,6 +107,8 @@ export default function LoginScreen() {
                 placeholder="Password"
                 placeholderTextColor="#94a3b8"
                 secureTextEntry
+                value={password}
+                onChangeText={setPassword}
               />
             </View>
 
@@ -96,15 +125,21 @@ export default function LoginScreen() {
                 activeOpacity={0.9}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
+                onPress={onSignIn}
+                disabled={loading}
                 style={styles.buttonContainer}
               >
                 <LinearGradient
-                  colors={['#9536f6', '#7c2ed7']}
+                  colors={loading ? ['#a855f7', '#a855f7'] : ['#9536f6', '#7c2ed7']}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
                   style={styles.button}
                 >
-                  <Text style={styles.buttonText}>Log In</Text>
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Log In</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
