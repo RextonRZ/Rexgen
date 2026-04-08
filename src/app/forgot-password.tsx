@@ -301,6 +301,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     position: 'relative',
   },
+  otpLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 8,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
