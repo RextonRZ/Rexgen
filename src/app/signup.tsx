@@ -50,6 +50,24 @@ export default function SignupScreen() {
     buttonScale.value = withSpring(1);
   };
 
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return null;
+    let score = 0;
+    if (pass.length >= 8) score += 1;
+    if (pass.length >= 10) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (pass.length < 6) return { label: 'Very Weak', color: '#ef4444', width: '20%' }; // Red matching your error text
+    if (score <= 1) return { label: 'Weak', color: '#f97316', width: '40%' }; // Orange
+    if (score === 2) return { label: 'Moderate', color: '#eab308', width: '60%' }; // Yellow
+    if (score === 3) return { label: 'Strong', color: '#a855f7', width: '80%' }; // Lighter brand purple
+    return { label: 'Very Strong', color: '#9536f6', width: '100%' }; // Primary brand purple
+  };
+
+  const strength = getPasswordStrength(password);
+
   const onSignUp = async () => {
     setErrorMsg('');
     if (step === 1) {
@@ -203,6 +221,16 @@ export default function SignupScreen() {
                       <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color="#94a3b8" />
                     </TouchableOpacity>
                   </View>
+                  {strength && (
+                    <View style={styles.strengthContainer}>
+                      <View style={styles.strengthBarBackground}>
+                        <Animated.View style={[styles.strengthBarFill, { width: strength.width as any, backgroundColor: strength.color }]} />
+                      </View>
+                      <Text style={styles.strengthText}>
+                        Password strength: <Text style={{ color: strength.color }}>{strength.label}</Text>
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.inputContainer}>
@@ -390,6 +418,29 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 16,
+  },
+  strengthContainer: {
+    marginTop: 10,
+    paddingHorizontal: 4,
+  },
+  strengthBarBackground: {
+    height: 6,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 3,
+    overflow: 'hidden',
+    width: '100%',
+    flexDirection: 'row',
+  },
+  strengthBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  strengthText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 6,
+    textAlign: 'left',
   },
   input: {
     backgroundColor: '#ffffff',
