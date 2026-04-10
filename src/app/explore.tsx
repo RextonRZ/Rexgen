@@ -69,8 +69,23 @@ export default function ExploreScreen() {
 
           <TouchableOpacity
             activeOpacity={0.9}
+            onPress={() => router.push('/add-clothing')}
+            style={[styles.buttonContainer, { shadowColor: '#208AEF', marginBottom: 15 }]}
+          >
+            <LinearGradient
+              colors={['#7620ef', '#b15eff']} /* Blue gradient for Add Clothing */
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Add Clothing Item</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.9}
             onPress={handleSignOut}
-            style={styles.buttonContainer}
+            style={[styles.buttonContainer, { shadowColor: '#ef4444' }]}
           >
             <LinearGradient
               colors={['#ef4444', '#dc2626']} /* Red gradient for logout */
@@ -161,7 +176,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
