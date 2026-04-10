@@ -108,19 +108,20 @@ export default function LoginScreen() {
       const redirectTo = makeRedirectUri({
         path: '', 
       });
+      console.log('Redirect URI to whitelist in Supabase:', redirectTo);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
           skipBrowserRedirect: true,
-          queryParams: {
-            prompt: 'select_account', // Always ask which account to use
-          },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase OAuth Error:', error);
+        throw error;
+      }
       
       if (data?.url) {
         // We NO LONGER check the result of this function. 
